@@ -1,0 +1,144 @@
+#include <iostream>
+#include <fstream>
+#include <sstream>
+#include <string>
+#include <vector>
+#include <algorithm>
+#include <cctype>
+#include <unordered_map>
+#include <set>
+
+// Remove punctuation and convert to lowercase
+std::string preprocessString(const std::string& str) {
+	std::string processedStr;
+	for (char c : str) {
+		// || c == ' '
+		if (std::isalpha(c) || c == ' ') {
+			processedStr += std::tolower(c);
+		}
+	}
+	return processedStr;
+}
+
+// Split strings with spaces	
+std::vector<std::string> splitString(const std::string& str) {
+	std::vector<std::string> tokens;
+	std::istringstream iss(str);
+	std::string token;
+	while (iss >> token) {
+		tokens.push_back(token);
+	}
+	return tokens;
+}
+
+// Build a word search engine
+std::unordered_map<std::string, std::set<int>> buildIndex(const std::vector<std::pair<int, std::string>>& corpus) {
+	std::unordered_map<std::string, std::set<int>> index;
+	for (const auto& item : corpus) {
+		std::vector<std::string> words = splitString(preprocessString(item.second));
+		for (const auto& word : words) {
+			index[word].insert(item.first);
+		}
+	}
+	return index;
+}
+
+// Build a string search engine
+/*std::unordered_map<std::string, std::set<int>> buildIndex(const std::vector<std::pair<int, std::string>>& corpus) {
+	std::unordered_map<std::string, std::set<int>> index;
+	for (const auto& item : corpus) {
+		std::string lowercaseStr = preprocessString(item.second);
+		index[lowercaseStr].insert(item.first);
+	}
+	return index;
+}*/
+
+// execute query
+std::set<int> executeQuery(const std::vector<std::string>& keywords, const std::unordered_map<std::string, std::set<int>>& index) {
+	std::set<int> result;
+	for (const auto& keyword : keywords) {
+		auto it = index.find(keyword);
+		if (it == index.end()) {
+			result.clear();  
+			result.insert(-1);  
+			break;  // stop
+		}
+		if (result.empty()) {
+			result = it->second;
+		}
+		else {
+			std::set<int> intersection;
+			std::set_intersection(result.begin(), result.end(), it->second.begin(), it->second.end(), std::inserter(intersection, intersection.begin()));
+			result = intersection;
+		}
+	}
+	return result;
+}
+
+
+int main(int argc, char* argv[]) {
+	// command argument input file
+	if (argc < 3) {
+		std::cout << "Usage: ./hw5 <corpus_file> <query_file>\n";
+		return 1;
+	}
+
+	// open file
+	//std::ifstream corpusFile(argv[1]); 
+	std::ifstream corpusFile("C:\\Users\\chius\\OneDrive\\桌面\\Simple_Search_Engine\\corpus1.txt"); //test change
+	if (!corpusFile) {
+		std::cout << "Failed to open corpus file.\n";
+		return 1;
+	}
+
+	// Read the file and make initial settings
+	std::vector<std::pair<int, std::string>> corpus;
+	std::string line;
+	while (std::getline(corpusFile, line)) {
+		std::istringstream iss(line);
+		int id;
+		std::string content;
+		if (iss >> id && std::getline(iss, content)) {
+			// Remove the double quotes, find the first "next position and set it to 0, and find the last position that is not "+1, because of the substr feature
+			content = content.substr(content.find_first_of("\"") + 1);
+			content = content.substr(0, content.find_last_not_of("\"") + 1);
+			corpus.emplace_back(id, content);
+		}
+	}
+	corpusFile.close();
+
+	// Build search engine
+	std::unordered_map<std::string, std::set<int>> index = buildIndex(corpus);
+
+	/*for (const auto& print : index) {
+
+		for (const auto& num : print.second) {
+			std::cout << num << ' ';
+		}
+		std::cout << print.first << '\t';
+		std::cout << std::endl;
+	}*/
+
+	// execute query
+	//std::ifstream queriesFile(argv[2]);
+	std::ifstream queriesFile("C:\\Users\\chius\\OneDrive\\桌面\\Simple_Search_Engine\\query1.txt"); //test change
+	if (!queriesFile) {
+		std::cout << "Failed to open query file.\n";
+		return 1;
+	}
+	while (std::getline(queriesFile, line)) {
+		std::vector<std::string> keywords = splitString(preprocessString(line));
+		std::set<int> result = executeQuery(keywords, index);
+		for (int id : result) {
+			std::cout << id << " ";
+		}
+		std::cout << std::endl;
+	}
+
+	queriesFile.close();
+
+}
+
+//for (auto print : corpus) {
+//	std::cout << print.first << ' ' << print.second << std::endl;
+//}
